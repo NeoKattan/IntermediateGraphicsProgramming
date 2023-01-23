@@ -12,9 +12,10 @@ const char* vertexShaderSource =
 "layout (location = 0) in vec3 vPos;	\n"
 "layout (location = 1) in vec4 vColor;	\n"
 "out vec4 Color;						\n"
+"uniform float _Time;					\n"
 "void main(){							\n"
 "   Color = vColor;						\n"
-"   gl_Position = vec4(vPos,1.0);		\n"
+"   gl_Position = vec4(vPos.x * sin(_Time+vPos.x), vPos.y * cos(_Time*vPos.y), vPos.z * tan(_Time*vPos.z), 1.0);	\n"
 "}										\0";
 
 //TODO: Fragment shader source code
