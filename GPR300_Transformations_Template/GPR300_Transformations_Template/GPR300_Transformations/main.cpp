@@ -48,7 +48,7 @@ const float MOUSE_SENSITIVITY = 0.1f;
 glm::vec3 bgColor = glm::vec3(0);
 float exampleSliderFloat = 0.0f;
 
-float orbitRadius = 5;
+float orbitRadius = 10;
 float orbitSpeed = 0;
 float fieldOfView = 1;
 float orthographicHeight = 10;
@@ -144,8 +144,6 @@ glm::mat4 Camera::GetViewMatrix() {
 	glm::vec3 u = cross(r, f);
 	f = -f;
 
-	return glm::lookAt(target, position, glm::vec3(0, 1, 0));
-
 	glm::mat4 rCamInv = {	{r.x, u.x, f.x, 0},
 							{r.y, u.y, f.y, 0},
 							{r.z, u.z, f.z, 0},
@@ -157,6 +155,8 @@ glm::mat4 Camera::GetViewMatrix() {
 							{-position.x, -position.y, -position.z, 1} };
 
 	glm::mat4 viewMatrix = rCamInv * tCamInv;
+
+	return glm::lookAt(target, position, glm::vec3(0, 1, 0));
 
 	return viewMatrix;
 }
@@ -176,7 +176,7 @@ glm::mat4 Camera::Ortho(float height, float aspectRatio, float nearPlane, float 
 	float l = -r;
 	float b = -t;
 
-	return glm::ortho(l, r, b, t);
+	//return glm::ortho(l, r, b, t);
 	
 	glm::mat4 orthoMatrix = {	{2 / (r - l), 0, 0, 0},
 								{0, 2 / (t - b), 0, 0},
@@ -189,7 +189,7 @@ glm::mat4 Camera::Ortho(float height, float aspectRatio, float nearPlane, float 
 glm::mat4 Camera::Perspective(float fov, float aspectRatio, float nearPlane, float farPlane) {
 	float c = tan(fov / 2);
 
-	//return glm::perspective(fov, aspectRatio, nearPlane, farPlane);
+	return glm::perspective(fov, aspectRatio, nearPlane, farPlane);
 	
 	glm::mat4 perspectiveMatrix = { {1 / (aspectRatio * c), 0, 0, 0},
 									{0, 1 / c, 0, 0},
@@ -200,11 +200,12 @@ glm::mat4 Camera::Perspective(float fov, float aspectRatio, float nearPlane, flo
 }
 
 void Camera::Update() {
-	position *= (orbitRadius / glm::length(position));
-	glm::vec3 newPos = position;
+	//position = orbitRadius * glm::normalize(position);
+	glm::vec3 newPos = glm::normalize(position);
 	newPos.x = (position.x * cos(orbitSpeed/100)) - (position.z * sin(orbitSpeed/100));
 	newPos.z = (position.z * cos(orbitSpeed/100)) + (position.x * sin(orbitSpeed/100));
-	position = newPos;
+	position = orbitRadius * glm::normalize(newPos);
+	// = orbitRadius * glm::normalize(position);
 	/*glm::mat3 rotMat = {	{cos(orbitSpeed / 100), 0, -sin(orbitSpeed / 100)},
 							{0, 1, 0},
 							{sin(orbitSpeed / 100), 0, cos(orbitSpeed / 100)} };
@@ -268,7 +269,7 @@ int main() {
 								glm::vec3((rand() % 10) + 1, (rand() % 10) + 1, (rand() % 10) + 1));
 	}
 
-	Transform coob(glm::vec3(0, 0, 0), glm::vec3(45, 45, 45), glm::vec3(0.25, 0.25, 0.25));
+	Transform coob(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(0.25, 0.25, 0.25));
 
 	Camera cam;
 
