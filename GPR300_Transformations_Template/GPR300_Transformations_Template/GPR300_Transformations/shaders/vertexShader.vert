@@ -10,6 +10,5 @@ uniform mat4 _Projection;
 
 void main(){ 
     Normal = vNormal;
-    gl_Position = _View * _Projection * _Model * vec4(vPos,1);
-    //gl_Position = vec4(vPos,1);
+    gl_Position = _Projection * _View * _Model * vec4(vPos,1);
 }

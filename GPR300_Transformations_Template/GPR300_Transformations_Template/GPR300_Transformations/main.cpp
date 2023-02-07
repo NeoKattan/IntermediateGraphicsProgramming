@@ -106,6 +106,8 @@ glm::mat4 Transform::GetModelMatrix() {
 
 	glm::mat4 modelMatrix = translationMat4 * rotationMat4 * scaleMat4;
 
+	//return glm::mat4(1);
+
 	return modelMatrix; 
 }
 
@@ -139,9 +141,9 @@ Camera::~Camera() {
 }
 
 glm::mat4 Camera::GetViewMatrix() {
-	glm::vec3 f = target - position;
-	glm::vec3 r = cross(f, glm::vec3(0, 1, 0));
-	glm::vec3 u = cross(r, f);
+	glm::vec3 f = glm::normalize(target - position);
+	glm::vec3 r = glm::normalize(cross(f, glm::vec3(0, 1, 0)));
+	glm::vec3 u = glm::normalize(cross(r, f));
 	f = -f;
 
 	glm::mat4 rCamInv = {	{r.x, u.x, f.x, 0},
@@ -156,17 +158,17 @@ glm::mat4 Camera::GetViewMatrix() {
 
 	glm::mat4 viewMatrix = rCamInv * tCamInv;
 
-	return glm::lookAt(target, position, glm::vec3(0, 1, 0));
+	//return glm::lookAt(position, target, glm::vec3(0, 1, 0));
 
 	return viewMatrix;
 }
 
 glm::mat4 Camera::GetProjectionMatrix() {
 	if (orthographic) {
-		return Ortho(SCREEN_HEIGHT, SCREEN_WIDTH / SCREEN_HEIGHT, NEAR_PLANE, FAR_PLANE);
+		return Ortho(orthographicHeight, (float)SCREEN_WIDTH / SCREEN_HEIGHT, NEAR_PLANE, FAR_PLANE);
 	}
 	else {
-		return Perspective(fov, SCREEN_WIDTH / SCREEN_HEIGHT, NEAR_PLANE, FAR_PLANE);
+		return Perspective(fov, (float)SCREEN_WIDTH / SCREEN_HEIGHT, NEAR_PLANE, FAR_PLANE);
 	}
 }
 
@@ -189,7 +191,7 @@ glm::mat4 Camera::Ortho(float height, float aspectRatio, float nearPlane, float 
 glm::mat4 Camera::Perspective(float fov, float aspectRatio, float nearPlane, float farPlane) {
 	float c = tan(fov / 2);
 
-	return glm::perspective(fov, aspectRatio, nearPlane, farPlane);
+	//return glm::perspective(glm::radians(fov), aspectRatio, nearPlane, farPlane);
 	
 	glm::mat4 perspectiveMatrix = { {1 / (aspectRatio * c), 0, 0, 0},
 									{0, 1 / c, 0, 0},
@@ -200,16 +202,13 @@ glm::mat4 Camera::Perspective(float fov, float aspectRatio, float nearPlane, flo
 }
 
 void Camera::Update() {
-	//position = orbitRadius * glm::normalize(position);
+	//orbit
 	glm::vec3 newPos = glm::normalize(position);
 	newPos.x = (position.x * cos(orbitSpeed/100)) - (position.z * sin(orbitSpeed/100));
 	newPos.z = (position.z * cos(orbitSpeed/100)) + (position.x * sin(orbitSpeed/100));
 	position = orbitRadius * glm::normalize(newPos);
-	// = orbitRadius * glm::normalize(position);
-	/*glm::mat3 rotMat = {	{cos(orbitSpeed / 100), 0, -sin(orbitSpeed / 100)},
-							{0, 1, 0},
-							{sin(orbitSpeed / 100), 0, cos(orbitSpeed / 100)} };
-	position *= rotMat;*/
+
+	//update from sliders
 	fov = fieldOfView;
 	orthographicSize = orthographicHeight;
 	orthographic = orthographicToggle;
@@ -264,12 +263,12 @@ int main() {
 	Transform *cubes[5];
 	srand(time_t(0));
 	for (int i = 0; i < 5; i++) {
-		cubes[i] = new Transform(glm::vec3((rand() % 10) + 1, (rand() % 10) + 1, (rand() % 10) + 1),
+		cubes[i] = new Transform(glm::vec3((rand() % 10) - 5, (rand() % 10) - 5, (rand() % 10) - 5),
 								glm::vec3((rand() % 360), (rand() % 360), (rand() % 360)),
-								glm::vec3((rand() % 10) + 1, (rand() % 10) + 1, (rand() % 10) + 1));
+								glm::vec3((rand() % 5) + 0.1, (rand() % 5) + 0.1, (rand() % 5) + 0.1));
 	}
 
-	Transform coob(glm::vec3(0, 0, 0), glm::vec3(0, 0, 0), glm::vec3(0.25, 0.25, 0.25));
+	Transform coob(glm::vec3(0, 0, 0), glm::vec3(45, 45, 45), glm::vec3(1, 1, 1));
 
 	Camera cam;
 
@@ -289,20 +288,24 @@ int main() {
 		shader.use();
 		shader.setMat4("_View", cam.GetViewMatrix());
 		shader.setMat4("_Projection", cam.GetProjectionMatrix());
-		shader.setMat4("_Model", coob.GetModelMatrix());
-		cubeMesh.draw();
-		/*for (int i = 0; i < sizeof(cubes) / sizeof(cubes[0]); i++) {
+		//shader.setMat4("_Model", coob.GetModelMatrix());
+		//cubeMesh.draw();
+		for (int i = 0; i < sizeof(cubes) / sizeof(cubes[0]); i++) {
 			shader.setMat4("_Model", cubes[i]->GetModelMatrix());
 			cubeMesh.draw();
-		}*/
+		}
 
 		//Draw UI
 		ImGui::Begin("Settings");
+		ImGui::Checkbox("Orthographic Toggle", &orthographicToggle);
+		if (orthographicToggle) {
+			ImGui::SliderFloat("Orthographic Height", &orthographicHeight, 1.0f, 100.0f);
+		}
+		else {
+			ImGui::SliderFloat("Field of View", &fieldOfView, 0.0f, 3.14f);
+		}
 		ImGui::SliderFloat("Orbit Radius", &orbitRadius, 1.0f, 50.0f);
 		ImGui::SliderFloat("Orbit Speed", &orbitSpeed, 0.0f, 10.0f);
-		ImGui::SliderFloat("Field of View", &fieldOfView, 1.0f, 3.0f);
-		ImGui::SliderFloat("Orthographic Height", &orthographicHeight, 0.0f, 10.0f);
-		ImGui::Checkbox("Orthographic Toggle", &orthographicToggle);
 		ImGui::End();
 		cam.Update();
 
