@@ -51,10 +51,54 @@ const float CAMERA_ZOOM_SPEED = 3.0f;
 Camera camera((float)SCREEN_WIDTH / (float)SCREEN_HEIGHT);
 
 glm::vec3 bgColor = glm::vec3(0);
-glm::vec3 lightColor = glm::vec3(1.0f);
-glm::vec3 lightPosition = glm::vec3(0.0f, 3.0f, 0.0f);
 
 bool wireFrame = false;
+
+struct DirLight {
+	glm::vec3 color;
+	glm::vec3 direction;
+	float intensity;
+};
+
+DirLight dirLight;
+
+struct PtLight {
+	glm::vec3 color;
+	float intensity;
+	float linearAtt;
+};
+
+PtLight ptLight1, ptLight2;
+
+struct SpLight {
+	glm::vec3 color;
+	glm::vec3 position;
+	glm::vec3 direction;
+	float intensity;
+	float linearAtt;
+	float minAngle;
+	float maxAngle;
+};
+
+SpLight spLight;
+
+struct BlinnPhong {
+	glm::vec3 ambient;
+	glm::vec3 diffuse;
+	glm::vec3 specular;
+};
+
+BlinnPhong blinnphong;
+
+struct Material {
+	glm::vec3 color;
+	float ambientK;
+	float diffuseK;
+	float specularK;
+	float shininess;
+};
+
+Material material;
 
 int main() {
 	if (!glfwInit()) {
@@ -125,7 +169,8 @@ int main() {
 	ew::Transform sphereTransform;
 	ew::Transform planeTransform;
 	ew::Transform cylinderTransform;
-	ew::Transform lightTransform;
+	ew::Transform lightTransform1;
+	ew::Transform lightTransform2;
 
 	cubeTransform.position = glm::vec3(-2.0f, 0.0f, 0.0f);
 	sphereTransform.position = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -135,8 +180,11 @@ int main() {
 
 	cylinderTransform.position = glm::vec3(2.0f, 0.0f, 0.0f);
 
-	lightTransform.scale = glm::vec3(0.5f);
-	lightTransform.position = glm::vec3(0.0f, 5.0f, 0.0f);
+	lightTransform1.scale = glm::vec3(0.5f);
+	lightTransform1.position = glm::vec3(1.0f, 5.0f, 1.0f);
+
+	lightTransform2.scale = glm::vec3(0.5f);
+	lightTransform2.position = glm::vec3(-1.0f, 5.0f, -1.0f);
 
 	while (!glfwWindowShouldClose(window)) {
 		processInput(window);
@@ -151,11 +199,25 @@ int main() {
 		deltaTime = time - lastFrameTime;
 		lastFrameTime = time;
 
+		//UPDATE
+		cubeTransform.rotation.x += deltaTime;
+
 		//Draw
 		litShader.use();
 		litShader.setMat4("_Projection", camera.getProjectionMatrix());
 		litShader.setMat4("_View", camera.getViewMatrix());
-		litShader.setVec3("_LightPos", lightTransform.position);
+
+		//Set some lighting uniforms
+		litShader.setVec3("_PtLight[0].position", lightTransform1.position);
+		litShader.setVec3("_PtLight[1].position", lightTransform2.position);
+
+		//Set some material uniforms
+		litShader.setVec3("_Material.color", material.color);
+		litShader.setFloat("_Material.ambientK", material.ambientK);
+		litShader.setFloat("_Material.diffuseK", material.diffuseK);
+		litShader.setFloat("_Material.specularK", material.specularK);
+		litShader.setFloat("_Material.shininess", material.shininess);
+
 		//Draw cube
 		litShader.setMat4("_Model", cubeTransform.getModelMatrix());
 		cubeMesh.draw();
@@ -176,16 +238,38 @@ int main() {
 		unlitShader.use();
 		unlitShader.setMat4("_Projection", camera.getProjectionMatrix());
 		unlitShader.setMat4("_View", camera.getViewMatrix());
-		unlitShader.setMat4("_Model", lightTransform.getModelMatrix());
-		unlitShader.setVec3("_Color", lightColor);
+		unlitShader.setMat4("_Model", lightTransform1.getModelMatrix());
+		unlitShader.setVec3("_Color", ptLight1.color);
+		sphereMesh.draw();
+		unlitShader.setMat4("_Model", lightTransform2.getModelMatrix());
+		unlitShader.setVec3("_Color", ptLight2.color);
 		sphereMesh.draw();
 
 		//Draw UI
-		ImGui::Begin("Settings");
-
-		ImGui::ColorEdit3("Light Color", &lightColor.r);
-		ImGui::DragFloat3("Light Position", &lightTransform.position.x);
+		ImGui::Begin("Material");
+		ImGui::ColorEdit3("Material Color", &material.color.r);
+		ImGui::SliderFloat("Material Ambient K", &material.ambientK, 0, 1);
+		ImGui::SliderFloat("Material Diffuse K", &material.diffuseK, 0, 1);
+		ImGui::SliderFloat("Material Specular K", &material.specularK, 0, 1);
+		ImGui::SliderFloat("Material Shininess", &material.shininess, 1, 512);
 		ImGui::End();
+
+		//ImGui::Begin("Directional Light");
+		//ImGui::End();
+
+		ImGui::Begin("Point Lights");
+		ImGui::ColorEdit3("Color 1", &ptLight1.color.r);
+		ImGui::DragFloat3("Position 1", &lightTransform1.position.r, 1, -1, 1);
+		ImGui::SliderFloat("Intensity 1", &ptLight1.intensity, 0, 1);
+		ImGui::SliderFloat("Linear Attenuation 1", &ptLight1.linearAtt, 0, 1);
+		//ImGui::ColorEdit3("Color 2", &ptLight2.color.r);
+		//ImGui::DragFloat3("Position 2", &lightTransform2.position.r, 1, -1, 1);
+		//ImGui::SliderFloat("Intensity 2", &ptLight2.intensity, 0, 1);
+		//ImGui::SliderFloat("Linear Attenuation 2", &ptLight2.linearAtt, 0, 1);
+		ImGui::End();
+
+		//ImGui::Begin("Spot Light");
+		//ImGui::End();
 
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
