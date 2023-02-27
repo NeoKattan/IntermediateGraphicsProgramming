@@ -55,43 +55,36 @@ glm::vec3 bgColor = glm::vec3(0);
 bool wireFrame = false;
 
 struct DirLight {
-	glm::vec3 color;
+	glm::vec3 color = glm::vec3(1);
 	glm::vec3 direction;
-	float intensity;
+	float intensity = 1;
 };
 
 DirLight dirLight;
 
 struct PtLight {
-	glm::vec3 color;
-	float intensity;
-	float linearAtt;
+	glm::vec3 color = glm::vec3(1);
+	float intensity = 1;
+	float linearAtt = 10;
 };
 
 PtLight ptLight1, ptLight2;
 
 struct SpLight {
-	glm::vec3 color;
-	glm::vec3 position;
-	glm::vec3 direction;
-	float intensity;
-	float linearAtt;
-	float minAngle;
-	float maxAngle;
+	glm::vec3 color = glm::vec3(1);
+	glm::vec3 position = glm::vec3(0);
+	glm::vec3 direction = glm::vec3(0);
+	float intensity = 1;
+	float linearAtt = 10;
+	float minAngle = 30;
+	float maxAngle = 60;
+	float falloffCurve = 1;
 };
 
 SpLight spLight;
 
-struct BlinnPhong {
-	glm::vec3 ambient;
-	glm::vec3 diffuse;
-	glm::vec3 specular;
-};
-
-BlinnPhong blinnphong;
-
 struct Material {
-	glm::vec3 color;
+	glm::vec3 color = glm::vec3(1);
 	float ambientK;
 	float diffuseK;
 	float specularK;
@@ -152,6 +145,21 @@ int main() {
 	ew::Mesh planeMesh(&planeMeshData);
 	ew::Mesh cylinderMesh(&cylinderMeshData);
 
+	material.ambientK = 0.25;
+	material.diffuseK = 0.5;
+	material.specularK = 0.5;
+	material.shininess = 100;
+
+	dirLight.color = glm::vec3(0, 1, 0);
+	dirLight.direction = glm::vec3(1, -1, 0);
+
+	ptLight1.color = glm::vec3(1, 0, 0);
+	ptLight2.color = glm::vec3(0, 0, 1);
+
+	spLight.color = glm::vec3(0, 1, 1);
+	spLight.position = glm::vec3(3, 3, 0);
+	spLight.direction = glm::vec3(-1, -1, 0);
+
 	//Enable back face culling
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
@@ -208,8 +216,34 @@ int main() {
 		litShader.setMat4("_View", camera.getViewMatrix());
 
 		//Set some lighting uniforms
+		litShader.setVec3("_DirLight[0].color", dirLight.color);
+		litShader.setVec3("_DirLight[0].direction", normalize(dirLight.direction));
+		litShader.setFloat("_DirLight[0].intensity", dirLight.intensity);
+
 		litShader.setVec3("_PtLight[0].position", lightTransform1.position);
+		litShader.setVec3("_PtLight[0].color", ptLight1.color);
+		litShader.setFloat("_PtLight[0].intensity", ptLight1.intensity);
+		litShader.setFloat("_PtLight[0].linearAtt", ptLight1.linearAtt);
+
 		litShader.setVec3("_PtLight[1].position", lightTransform2.position);
+		litShader.setVec3("_PtLight[1].color", ptLight2.color);
+		litShader.setFloat("_PtLight[1].intensity", ptLight2.intensity);
+		litShader.setFloat("_PtLight[1].linearAtt", ptLight2.linearAtt);
+
+		litShader.setVec3("_SpLight[0].color", spLight.color);
+		litShader.setVec3("_SpLight[0].position", spLight.position);
+		litShader.setVec3("_SpLight[0].direction", normalize(spLight.direction));
+		litShader.setFloat("_SpLight[0].intensity", spLight.intensity);
+		litShader.setFloat("_SpLight[0].linearAtt", spLight.linearAtt);
+		litShader.setFloat("_SpLight[0].minAngle", cos(spLight.minAngle / 180 * 3.14159));
+		litShader.setFloat("_SpLight[0].maxAngle", cos(spLight.maxAngle / 180 * 3.14159));
+		litShader.setFloat("_SpLight[0].falloffCurve", spLight.falloffCurve);
+
+		litShader.setInt("numDirLights", 1);
+		litShader.setInt("numPtLights", 2);
+		litShader.setInt("numSpLights", 1);
+
+		litShader.setVec3("_CameraPos", camera.getPosition());
 
 		//Set some material uniforms
 		litShader.setVec3("_Material.color", material.color);
@@ -254,22 +288,33 @@ int main() {
 		ImGui::SliderFloat("Material Shininess", &material.shininess, 1, 512);
 		ImGui::End();
 
-		//ImGui::Begin("Directional Light");
-		//ImGui::End();
+		ImGui::Begin("Directional Light");
+		ImGui::ColorEdit3("Color", &dirLight.color.r);
+		ImGui::DragFloat3("Direction", &dirLight.direction.r, 1, -1, 1);
+		ImGui::SliderFloat("Intensity", &dirLight.intensity, 0, 1);
+		ImGui::End();
 
 		ImGui::Begin("Point Lights");
 		ImGui::ColorEdit3("Color 1", &ptLight1.color.r);
 		ImGui::DragFloat3("Position 1", &lightTransform1.position.r, 1, -1, 1);
 		ImGui::SliderFloat("Intensity 1", &ptLight1.intensity, 0, 1);
-		ImGui::SliderFloat("Linear Attenuation 1", &ptLight1.linearAtt, 0, 1);
-		//ImGui::ColorEdit3("Color 2", &ptLight2.color.r);
-		//ImGui::DragFloat3("Position 2", &lightTransform2.position.r, 1, -1, 1);
-		//ImGui::SliderFloat("Intensity 2", &ptLight2.intensity, 0, 1);
-		//ImGui::SliderFloat("Linear Attenuation 2", &ptLight2.linearAtt, 0, 1);
+		ImGui::SliderFloat("Linear Attenuation 1", &ptLight1.linearAtt, 0, 10);
+		ImGui::ColorEdit3("Color 2", &ptLight2.color.r);
+		ImGui::DragFloat3("Position 2", &lightTransform2.position.r, 1, -1, 1);
+		ImGui::SliderFloat("Intensity 2", &ptLight2.intensity, 0, 1);
+		ImGui::SliderFloat("Linear Attenuation 2", &ptLight2.linearAtt, 0, 10);
 		ImGui::End();
 
-		//ImGui::Begin("Spot Light");
-		//ImGui::End();
+		ImGui::Begin("Spot Light");
+		ImGui::ColorEdit3("Color", &spLight.color.r);
+		ImGui::DragFloat3("Position", &spLight.position.r, 1, -1, 1);
+		ImGui::DragFloat3("Direction", &spLight.direction.r, 1, -1, 1);
+		ImGui::SliderFloat("Intensity", &spLight.intensity, 0, 1);
+		ImGui::SliderFloat("Linear Attenuation", &spLight.linearAtt, 0, 10);
+		ImGui::SliderFloat("Min Angle", &spLight.minAngle, 0, spLight.maxAngle);
+		ImGui::SliderFloat("Max Angle", &spLight.maxAngle, spLight.minAngle, 180);
+		ImGui::SliderFloat("Falloff Curve", &spLight.falloffCurve, 0, 1);
+		ImGui::End();
 
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
