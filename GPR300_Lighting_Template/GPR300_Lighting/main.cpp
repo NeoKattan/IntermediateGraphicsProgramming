@@ -420,3 +420,8 @@ void processInput(GLFWwindow* window) {
 	position += up * getAxis(window, GLFW_KEY_Q, GLFW_KEY_E) * moveAmnt;
 	camera.setPosition(position);
 }
+
+//Create a function that loads a tecture from a file and returns a handle to it.
+GLuint createTexture(const char* filePath) {
+	return;
+}

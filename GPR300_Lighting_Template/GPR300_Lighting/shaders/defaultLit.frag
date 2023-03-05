@@ -56,6 +56,7 @@ void main(){
     diffuse = vec3(0);
     specular = vec3(0);
 
+    //Directional Lights
     for(int i = 0; i < numDirLights; i++) {
         vec3 l = normalize(_DirLight[i].direction * -1);
 
@@ -67,6 +68,7 @@ void main(){
         specular += _Material.specularK * pow(dot(v_out.WorldNormal, h), _Material.shininess) * (_DirLight[i].intensity * _DirLight[i].color);
     }
 
+    //Point Lights
     for(int i = 0; i < numPtLights; i++) {
         float linearAtt = length(_PtLight[i].position - v_out.WorldPosition) / _PtLight[i].linearAtt;
         linearAtt = 1 - pow(linearAtt, 4);
@@ -83,6 +85,7 @@ void main(){
         specular += _Material.specularK * pow(dot(v_out.WorldNormal, h), _Material.shininess) * (_PtLight[i].intensity * linearAtt * _PtLight[i].color);
     }
 
+    //Spot Lights
     for(int i = 0; i < numSpLights; i++) {
 
         vec3 dtofrag = normalize(v_out.WorldPosition - _SpLight[i].position);
