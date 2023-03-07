@@ -4,6 +4,7 @@ out vec4 FragColor;
 in struct Vertex{
     vec3 WorldNormal;
     vec3 WorldPosition;
+    vec2 Uv;
 }v_out;
 
 uniform vec3 _CameraPos;
@@ -50,8 +51,10 @@ uniform struct Material{
     float shininess; 
 }_Material;
 
+uniform sampler2D first, second;
+
 void main(){      
-    ambient = _Material.ambientK * _Material.color;
+    ambient = _Material.ambientK * texture(first, v_out.Uv).rgb;
 
     diffuse = vec3(0);
     specular = vec3(0);

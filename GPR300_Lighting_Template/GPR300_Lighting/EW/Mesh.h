@@ -9,8 +9,12 @@ namespace ew {
 	struct Vertex {
 		glm::vec3 position;
 		glm::vec3 normal;
-		Vertex(glm::vec3 position, glm::vec3 normal)
-			: position(position), normal(normal) {};
+		glm::vec2 uv;
+		Vertex(glm::vec3 POS, glm::vec3 NORM, glm::vec2 UV) {
+			position = POS;
+			normal = NORM;
+			uv = UV;
+		}
 	};
 
 	/// <summary>

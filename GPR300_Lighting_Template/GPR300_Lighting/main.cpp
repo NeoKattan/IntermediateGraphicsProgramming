@@ -8,6 +8,8 @@
 
 #include <stdio.h>
 
+#include <time.h>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -28,6 +30,7 @@ void keyboardCallback(GLFWwindow* window, int keycode, int scancode, int action,
 void mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 void mousePosCallback(GLFWwindow* window, double xpos, double ypos);
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+GLuint createTexture(const char* filePath);
 
 float lastFrameTime;
 float deltaTime;
@@ -93,6 +96,13 @@ struct Material {
 
 Material material;
 
+bool scrolling = false;
+float scrollSpeed = 1;
+
+const char* wrappingModes[] = { "Clamp To Edge", "Clamp To Border", "Repeat", "Mirrored Repeat" };
+static const char* currentWrap = "Clamp To Edge";
+int currentWrapMode = 0;
+
 int main() {
 	if (!glfwInit()) {
 		printf("glfw failed to init");
@@ -150,15 +160,15 @@ int main() {
 	material.specularK = 0.5;
 	material.shininess = 100;
 
-	dirLight.color = glm::vec3(0, 1, 0);
-	dirLight.direction = glm::vec3(1, -1, 0);
+	//dirLight.color = glm::vec3(0, 1, 0);
+	//dirLight.direction = glm::vec3(1, -1, 0);
 
-	ptLight1.color = glm::vec3(1, 0, 0);
-	ptLight2.color = glm::vec3(0, 0, 1);
+	ptLight1.color = glm::vec3(1, 1, 1);
+	//ptLight2.color = glm::vec3(0, 0, 1);
 
-	spLight.color = glm::vec3(0, 1, 1);
-	spLight.position = glm::vec3(3, 3, 0);
-	spLight.direction = glm::vec3(-1, -1, 0);
+	//spLight.color = glm::vec3(0, 1, 1);
+	//spLight.position = glm::vec3(3, 3, 0);
+	//spLight.direction = glm::vec3(-1, -1, 0);
 
 	//Enable back face culling
 	glEnable(GL_CULL_FACE);
@@ -189,10 +199,16 @@ int main() {
 	cylinderTransform.position = glm::vec3(2.0f, 0.0f, 0.0f);
 
 	lightTransform1.scale = glm::vec3(0.5f);
-	lightTransform1.position = glm::vec3(1.0f, 5.0f, 1.0f);
+	lightTransform1.position = glm::vec3(0.0f, 5.0f, 0.0f);
 
-	lightTransform2.scale = glm::vec3(0.5f);
-	lightTransform2.position = glm::vec3(-1.0f, 5.0f, -1.0f);
+	//lightTransform2.scale = glm::vec3(0.5f);
+	//lightTransform2.position = glm::vec3(-1.0f, 5.0f, -1.0f);
+
+	glActiveTexture(GL_TEXTURE0);
+	GLuint bamboo = createTexture("../../Resources/Bamboo/Bamboo001A_4K_Color.jpg");
+	
+	glActiveTexture(GL_TEXTURE1);
+	GLuint fabric = createTexture("../../Resources/Fabric/Fabric061_4K_Color.jpg");
 
 	while (!glfwWindowShouldClose(window)) {
 		processInput(window);
@@ -216,41 +232,47 @@ int main() {
 		litShader.setMat4("_View", camera.getViewMatrix());
 
 		//Set some lighting uniforms
-		litShader.setVec3("_DirLight[0].color", dirLight.color);
-		litShader.setVec3("_DirLight[0].direction", normalize(dirLight.direction));
-		litShader.setFloat("_DirLight[0].intensity", dirLight.intensity);
+		 
+		//litShader.setVec3("_DirLight[0].color", dirLight.color);
+		//litShader.setVec3("_DirLight[0].direction", normalize(dirLight.direction));
+		//litShader.setFloat("_DirLight[0].intensity", dirLight.intensity);
 
 		litShader.setVec3("_PtLight[0].position", lightTransform1.position);
 		litShader.setVec3("_PtLight[0].color", ptLight1.color);
 		litShader.setFloat("_PtLight[0].intensity", ptLight1.intensity);
 		litShader.setFloat("_PtLight[0].linearAtt", ptLight1.linearAtt);
 
-		litShader.setVec3("_PtLight[1].position", lightTransform2.position);
-		litShader.setVec3("_PtLight[1].color", ptLight2.color);
-		litShader.setFloat("_PtLight[1].intensity", ptLight2.intensity);
-		litShader.setFloat("_PtLight[1].linearAtt", ptLight2.linearAtt);
+		//litShader.setVec3("_PtLight[1].position", lightTransform2.position);
+		//litShader.setVec3("_PtLight[1].color", ptLight2.color);
+		//litShader.setFloat("_PtLight[1].intensity", ptLight2.intensity);
+		//litShader.setFloat("_PtLight[1].linearAtt", ptLight2.linearAtt);
 
-		litShader.setVec3("_SpLight[0].color", spLight.color);
-		litShader.setVec3("_SpLight[0].position", spLight.position);
-		litShader.setVec3("_SpLight[0].direction", normalize(spLight.direction));
-		litShader.setFloat("_SpLight[0].intensity", spLight.intensity);
-		litShader.setFloat("_SpLight[0].linearAtt", spLight.linearAtt);
-		litShader.setFloat("_SpLight[0].minAngle", cos(spLight.minAngle / 180 * 3.14159));
-		litShader.setFloat("_SpLight[0].maxAngle", cos(spLight.maxAngle / 180 * 3.14159));
-		litShader.setFloat("_SpLight[0].falloffCurve", spLight.falloffCurve);
+		//litShader.setVec3("_SpLight[0].color", spLight.color);
+		//litShader.setVec3("_SpLight[0].position", spLight.position);
+		//litShader.setVec3("_SpLight[0].direction", normalize(spLight.direction));
+		//litShader.setFloat("_SpLight[0].intensity", spLight.intensity);
+		//litShader.setFloat("_SpLight[0].linearAtt", spLight.linearAtt);
+		//litShader.setFloat("_SpLight[0].minAngle", cos(spLight.minAngle / 180 * 3.14159));
+		//litShader.setFloat("_SpLight[0].maxAngle", cos(spLight.maxAngle / 180 * 3.14159));
+		//litShader.setFloat("_SpLight[0].falloffCurve", spLight.falloffCurve);
 
-		litShader.setInt("numDirLights", 1);
-		litShader.setInt("numPtLights", 2);
-		litShader.setInt("numSpLights", 1);
+		//litShader.setInt("numDirLights", 1);
+		litShader.setInt("numPtLights", 1);
+		//litShader.setInt("numSpLights", 1);
 
 		litShader.setVec3("_CameraPos", camera.getPosition());
 
 		//Set some material uniforms
 		litShader.setVec3("_Material.color", material.color);
+		litShader.setInt("Scrolling", scrolling);
+		litShader.setFloat("Time", (float)glfwGetTime() * scrollSpeed);
 		litShader.setFloat("_Material.ambientK", material.ambientK);
 		litShader.setFloat("_Material.diffuseK", material.diffuseK);
 		litShader.setFloat("_Material.specularK", material.specularK);
 		litShader.setFloat("_Material.shininess", material.shininess);
+
+		litShader.setInt("first", 0);
+		litShader.setInt("second", 1);
 
 		//Draw cube
 		litShader.setMat4("_Model", cubeTransform.getModelMatrix());
@@ -275,46 +297,65 @@ int main() {
 		unlitShader.setMat4("_Model", lightTransform1.getModelMatrix());
 		unlitShader.setVec3("_Color", ptLight1.color);
 		sphereMesh.draw();
-		unlitShader.setMat4("_Model", lightTransform2.getModelMatrix());
-		unlitShader.setVec3("_Color", ptLight2.color);
-		sphereMesh.draw();
+		//unlitShader.setMat4("_Model", lightTransform2.getModelMatrix());
+		//unlitShader.setVec3("_Color", ptLight2.color);
+		//sphereMesh.draw();
 
 		//Draw UI
 		ImGui::Begin("Material");
-		ImGui::ColorEdit3("Material Color", &material.color.r);
+		//ImGui::ColorEdit3("Material Color", &material.color.r);
+		ImGui::Checkbox("Scrolling", &scrolling);
+		ImGui::SliderFloat("Scroll Speed", &scrollSpeed, 0, 1);
+
+		if (ImGui::BeginCombo("Wrapping Mode", currentWrap)) // The second parameter is the label previewed before opening the combo.
+		{
+			for (int n = 0; n < IM_ARRAYSIZE(wrappingModes); n++)
+			{
+				bool is_selected = (currentWrap == wrappingModes[n]); // You can store your selection however you want, outside or inside your objects
+				if (ImGui::Selectable(wrappingModes[n], is_selected))
+				{
+					currentWrap = wrappingModes[n];
+					currentWrapMode = n;
+				}
+				if (is_selected)
+					ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+			}
+			ImGui::EndCombo();
+		}
+
 		ImGui::SliderFloat("Material Ambient K", &material.ambientK, 0, 1);
 		ImGui::SliderFloat("Material Diffuse K", &material.diffuseK, 0, 1);
 		ImGui::SliderFloat("Material Specular K", &material.specularK, 0, 1);
 		ImGui::SliderFloat("Material Shininess", &material.shininess, 1, 512);
 		ImGui::End();
 
-		ImGui::Begin("Directional Light");
-		ImGui::ColorEdit3("Color", &dirLight.color.r);
-		ImGui::DragFloat3("Direction", &dirLight.direction.r, 1, -1, 1);
-		ImGui::SliderFloat("Intensity", &dirLight.intensity, 0, 1);
-		ImGui::End();
+		//ImGui::Begin("Directional Light");
+		//ImGui::ColorEdit3("Color", &dirLight.color.r);
+		//ImGui::DragFloat3("Direction", &dirLight.direction.r, 1, -1, 1);
+		//ImGui::SliderFloat("Intensity", &dirLight.intensity, 0, 1);
+		//ImGui::End();
 
 		ImGui::Begin("Point Lights");
 		ImGui::ColorEdit3("Color 1", &ptLight1.color.r);
 		ImGui::DragFloat3("Position 1", &lightTransform1.position.r, 1, -1, 1);
 		ImGui::SliderFloat("Intensity 1", &ptLight1.intensity, 0, 1);
 		ImGui::SliderFloat("Linear Attenuation 1", &ptLight1.linearAtt, 0, 10);
-		ImGui::ColorEdit3("Color 2", &ptLight2.color.r);
-		ImGui::DragFloat3("Position 2", &lightTransform2.position.r, 1, -1, 1);
-		ImGui::SliderFloat("Intensity 2", &ptLight2.intensity, 0, 1);
-		ImGui::SliderFloat("Linear Attenuation 2", &ptLight2.linearAtt, 0, 10);
+		//ImGui::ColorEdit3("Color 2", &ptLight2.color.r);
+		//ImGui::DragFloat3("Position 2", &lightTransform2.position.r, 1, -1, 1);
+		//ImGui::SliderFloat("Intensity 2", &ptLight2.intensity, 0, 1);
+		//ImGui::SliderFloat("Linear Attenuation 2", &ptLight2.linearAtt, 0, 10);
 		ImGui::End();
 
-		ImGui::Begin("Spot Light");
-		ImGui::ColorEdit3("Color", &spLight.color.r);
-		ImGui::DragFloat3("Position", &spLight.position.r, 1, -1, 1);
-		ImGui::DragFloat3("Direction", &spLight.direction.r, 1, -1, 1);
-		ImGui::SliderFloat("Intensity", &spLight.intensity, 0, 1);
-		ImGui::SliderFloat("Linear Attenuation", &spLight.linearAtt, 0, 10);
-		ImGui::SliderFloat("Min Angle", &spLight.minAngle, 0, spLight.maxAngle);
-		ImGui::SliderFloat("Max Angle", &spLight.maxAngle, spLight.minAngle, 180);
-		ImGui::SliderFloat("Falloff Curve", &spLight.falloffCurve, 0, 1);
-		ImGui::End();
+		//ImGui::Begin("Spot Light");
+		//ImGui::ColorEdit3("Color", &spLight.color.r);
+		//ImGui::DragFloat3("Position", &spLight.position.r, 1, -1, 1);
+		//ImGui::DragFloat3("Direction", &spLight.direction.r, 1, -1, 1);
+		//ImGui::SliderFloat("Intensity", &spLight.intensity, 0, 1);
+		//ImGui::SliderFloat("Linear Attenuation", &spLight.linearAtt, 0, 10);
+		//ImGui::SliderFloat("Min Angle", &spLight.minAngle, 0, spLight.maxAngle);
+		//ImGui::SliderFloat("Max Angle", &spLight.maxAngle, spLight.minAngle, 180);
+		//ImGui::SliderFloat("Falloff Curve", &spLight.falloffCurve, 0, 1);
+		//ImGui::End();
 
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -423,5 +464,50 @@ void processInput(GLFWwindow* window) {
 
 //Create a function that loads a tecture from a file and returns a handle to it.
 GLuint createTexture(const char* filePath) {
-	return;
+
+	//Generate a texture name
+	GLuint texture;
+	glGenTextures(1, &texture);
+
+	//Bind our name to GL_TEXTURE_2D to make it a 2D texture.
+	glBindTexture(GL_TEXTURE_2D, texture);
+
+	//Load texture data as file
+	int width, height, numComponents;
+	unsigned char* textureData = stbi_load(filePath, &width, &height, &numComponents, 0);
+	if (textureData == NULL) {
+		printf("Texture data did not work");
+	}
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, textureData);
+
+	//Wrapping
+	switch (currentWrapMode) {
+		case 0:
+			glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			break;
+		case 1:
+			glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+			glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+			break;
+		case 2:
+			glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+			glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+			break;
+		case 3:
+			glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+			glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+			break;
+	}
+
+	//When magnififying, use nearest neighbor sampling
+	glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	//When minifying, use bilinear sampling
+	glTextureParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+
+	glGenerateMipmap(GL_TEXTURE_2D);
+	
+	return texture;
 }
