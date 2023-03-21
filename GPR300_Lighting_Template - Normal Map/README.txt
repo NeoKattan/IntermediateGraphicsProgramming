@@ -1,0 +1,2 @@
+This lighting shader uses the UE windowed version of linear attenuation.
+Some reasonings include that Unreal Engine usually had beautiful graphics, so I trust their method, and that the equation looked very simple.
