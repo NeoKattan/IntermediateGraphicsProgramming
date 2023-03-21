@@ -14,12 +14,14 @@ out struct Vertex{
     mat3 TBN;
 }v_out;
 
+uniform float NormalIntensity;
 uniform bool Scrolling;
 uniform float Time;
 
 void main(){    
     v_out.WorldPosition = vec3(_Model * vec4(vPos,1));
     vec3 worldNormal = transpose(inverse(mat3(_Model))) * vNormal;
+    worldNormal *= NormalIntensity;
     vec3 worldTangent = transpose(inverse(mat3(_Model))) * vTangent;
     gl_Position = _Projection * _View * _Model * vec4(vPos,1);
 

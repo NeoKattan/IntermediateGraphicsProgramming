@@ -96,6 +96,8 @@ struct Material {
 
 Material material;
 
+float normalIntensity = 1;
+
 bool scrolling = false;
 float scrollSpeed = 1;
 
@@ -264,6 +266,7 @@ int main() {
 
 		//Set some material uniforms
 		litShader.setVec3("_Material.color", material.color);
+		litShader.setFloat("NormalIntensity", normalIntensity);
 		litShader.setInt("Scrolling", scrolling);
 		litShader.setFloat("Time", (float)glfwGetTime() * scrollSpeed);
 		litShader.setFloat("_Material.ambientK", material.ambientK);
@@ -304,6 +307,7 @@ int main() {
 		//Draw UI
 		ImGui::Begin("Material");
 		//ImGui::ColorEdit3("Material Color", &material.color.r);
+		ImGui::SliderFloat("Normal Map Intensity", &normalIntensity, 0, 1);
 		ImGui::Checkbox("Scrolling", &scrolling);
 		ImGui::SliderFloat("Scroll Speed", &scrollSpeed, 0, 1);
 
