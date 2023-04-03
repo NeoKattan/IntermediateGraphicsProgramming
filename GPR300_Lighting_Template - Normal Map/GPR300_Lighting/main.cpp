@@ -7,6 +7,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <stdio.h>
+#include <iostream>
 
 #include <time.h>
 
@@ -31,6 +32,7 @@ void mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 void mousePosCallback(GLFWwindow* window, double xpos, double ypos);
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 GLuint createTexture(const char* filePath);
+GLuint createFBO();
 
 float lastFrameTime;
 float deltaTime;
@@ -105,6 +107,8 @@ const char* wrappingModes[] = { "Clamp To Edge", "Clamp To Border", "Repeat", "M
 static const char* currentWrap = "Clamp To Edge";
 int currentWrapMode = 2;
 
+const GLuint fboLoc = 10;
+
 int main() {
 	if (!glfwInit()) {
 		printf("glfw failed to init");
@@ -143,6 +147,9 @@ int main() {
 	//Used to draw light sphere
 	Shader unlitShader("shaders/defaultLit.vert", "shaders/unlit.frag");
 
+	//Post Processing Shader
+	Shader postProcShader("postprocessingshaders/postProc.vert", "postprocessingshaders/postProc.frag");
+
 	ew::MeshData cubeMeshData;
 	ew::createCube(1.0f, 1.0f, 1.0f, cubeMeshData);
 	ew::MeshData sphereMeshData;
@@ -152,10 +159,15 @@ int main() {
 	ew::MeshData planeMeshData;
 	ew::createPlane(1.0f, 1.0f, planeMeshData);
 
+	ew::MeshData quadMeshData;
+	ew::createQuad(2.0f, 2.0f, quadMeshData);
+
 	ew::Mesh cubeMesh(&cubeMeshData);
 	ew::Mesh sphereMesh(&sphereMeshData);
 	ew::Mesh planeMesh(&planeMeshData);
 	ew::Mesh cylinderMesh(&cylinderMeshData);
+
+	ew::Mesh quadMesh(&quadMeshData);
 
 	material.ambientK = 0.25;
 	material.diffuseK = 0.5;
@@ -212,7 +224,10 @@ int main() {
 	glActiveTexture(GL_TEXTURE1);
 	GLuint bambooNormal = createTexture("../../Resources/Bamboo/Bamboo001A_4K_NormalGL.jpg");
 
+	GLuint fbo = createFBO();
+
 	while (!glfwWindowShouldClose(window)) {
+
 		processInput(window);
 		glClearColor(bgColor.r,bgColor.g,bgColor.b, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -227,6 +242,11 @@ int main() {
 
 		//UPDATE
 		cubeTransform.rotation.x += deltaTime;
+
+		//Bind FBO
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
 		//Draw
 		litShader.use();
@@ -304,6 +324,16 @@ int main() {
 		//unlitShader.setVec3("_Color", ptLight2.color);
 		//sphereMesh.draw();
 
+		//Unbind FBO
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		//Draw Quad with data from GL_FRAMEBUFFER
+		postProcShader.use();
+		postProcShader.setInt("_FrameBuffer", fboLoc);
+		glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+		quadMesh.draw();
+
 		//Draw UI
 		ImGui::Begin("Material");
 		//ImGui::ColorEdit3("Material Color", &material.color.r);
@@ -362,11 +392,15 @@ int main() {
 		//ImGui::End();
 
 		ImGui::Render();
+
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 		glfwPollEvents();
 
 		glfwSwapBuffers(window);
 	}
+
+	//Delete
+	glDeleteFramebuffers(1, &fbo);
 
 	glfwTerminate();
 	return 0;
@@ -514,4 +548,45 @@ GLuint createTexture(const char* filePath) {
 	glGenerateMipmap(GL_TEXTURE_2D);
 	
 	return texture;
+}
+
+GLuint createFBO() {
+	//Create FBO
+	GLuint fbo;
+	glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+	glActiveTexture(GL_TEXTURE0 + fboLoc);
+
+	glEnable(GL_DEPTH_TEST);
+
+	//Create Tecture Color Buffer
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	//Attach Color Buffer
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+
+	//Create Render Buffer Object
+	GLuint rbo;
+	glGenRenderbuffers(1, &rbo);
+	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+
+	//Create storage for depth components
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32F, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+	//Attach RBO to current FBO
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+	//Returns the state of the currently bound FBO
+	GLenum fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (fboStatus == GL_FRAMEBUFFER_COMPLETE) {
+		std::cout << "WE GOOD" << std::endl;
+	}
+
+	return fbo;
 }
