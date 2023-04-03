@@ -109,6 +109,8 @@ int currentWrapMode = 2;
 
 const GLuint fboLoc = 10;
 
+bool postProcessing = false;
+
 int main() {
 	if (!glfwInit()) {
 		printf("glfw failed to init");
@@ -149,6 +151,7 @@ int main() {
 
 	//Post Processing Shader
 	Shader postProcShader("postprocessingshaders/postProc.vert", "postprocessingshaders/postProc.frag");
+	Shader noPostProcShader("postprocessingshaders/postProc.vert", "postprocessingshaders/noPostProc.frag");
 
 	ew::MeshData cubeMeshData;
 	ew::createCube(1.0f, 1.0f, 1.0f, cubeMeshData);
@@ -329,18 +332,27 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		//Draw Quad with data from GL_FRAMEBUFFER
-		postProcShader.use();
-		postProcShader.setInt("_FrameBuffer", fboLoc);
+
+		if (postProcessing) {
+			postProcShader.use();
+			postProcShader.setInt("_FrameBuffer", fboLoc);
+		}
+		else {
+			noPostProcShader.use();
+			noPostProcShader.setInt("_FrameBuffer", fboLoc);
+		}
 		glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 		quadMesh.draw();
 
 		//Draw UI
 		ImGui::Begin("Material");
+		ImGui::Checkbox("Post Processing", &postProcessing);
 		//ImGui::ColorEdit3("Material Color", &material.color.r);
 		ImGui::SliderFloat("Normal Map Intensity", &normalIntensity, 0, 1);
 		ImGui::Checkbox("Scrolling", &scrolling);
 		ImGui::SliderFloat("Scroll Speed", &scrollSpeed, 0, 1);
 
+		/*
 		if (ImGui::BeginCombo("Wrapping Mode", currentWrap)) // The second parameter is the label previewed before opening the combo.
 		{
 			for (int n = 0; n < IM_ARRAYSIZE(wrappingModes); n++)
@@ -356,6 +368,7 @@ int main() {
 			}
 			ImGui::EndCombo();
 		}
+		*/
 
 		ImGui::SliderFloat("Material Ambient K", &material.ambientK, 0, 1);
 		ImGui::SliderFloat("Material Diffuse K", &material.diffuseK, 0, 1);
