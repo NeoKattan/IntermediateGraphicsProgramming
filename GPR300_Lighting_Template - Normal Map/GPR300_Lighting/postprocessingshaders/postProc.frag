@@ -21,7 +21,11 @@ void main(){
     float xDis = abs(v_out.Uv.x - 0.5);
     float yDis = abs(v_out.Uv.y - 0.5);
     float distanceFromCenter = sqrt(xDis * xDis + yDis * yDis);
-    col -= sqrt(distanceFromCenter);
+    col -= distanceFromCenter * distanceFromCenter * distanceFromCenter;
+
+    //normalize colors
+    //normalize(col);
+
 
     FragColor = vec4(col,1.0f);
 }
