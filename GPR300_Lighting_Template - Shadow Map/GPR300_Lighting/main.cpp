@@ -7,6 +7,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <stdio.h>
+#include <iostream>
 
 #include <time.h>
 
@@ -31,6 +32,7 @@ void mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 void mousePosCallback(GLFWwindow* window, double xpos, double ypos);
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 GLuint createTexture(const char* filePath);
+GLuint createFBO();
 
 float lastFrameTime;
 float deltaTime;
@@ -96,13 +98,18 @@ struct Material {
 
 Material material;
 
+float normalIntensity = 0;
+
 bool scrolling = false;
 float scrollSpeed = 1;
 
 const char* wrappingModes[] = { "Clamp To Edge", "Clamp To Border", "Repeat", "Mirrored Repeat" };
 static const char* currentWrap = "Clamp To Edge";
-int currentWrapMode = 0;
+int currentWrapMode = 2;
 
+const GLuint fboLoc = 10;
+
+bool postProcessing = false;
 
 int main() {
 	if (!glfwInit()) {
@@ -117,11 +124,6 @@ int main() {
 		printf("glew failed to init");
 		return 1;
 	}
-
-	//Enable the Depth Buffer
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_STENCIL_TEST);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
 	glfwSetFramebufferSizeCallback(window, resizeFrameBufferCallback);
 	glfwSetKeyCallback(window, keyboardCallback);
@@ -147,8 +149,9 @@ int main() {
 	//Used to draw light sphere
 	Shader unlitShader("shaders/defaultLit.vert", "shaders/unlit.frag");
 
-	//Stencil Shader
-	Shader outliningProgram("shaders/outlining.vert", "shaders/outlining.frag");
+	//Post Processing Shader
+	Shader postProcShader("postprocessingshaders/postProc.vert", "postprocessingshaders/postProc.frag");
+	Shader noPostProcShader("postprocessingshaders/postProc.vert", "postprocessingshaders/noPostProc.frag");
 
 	ew::MeshData cubeMeshData;
 	ew::createCube(1.0f, 1.0f, 1.0f, cubeMeshData);
@@ -159,20 +162,25 @@ int main() {
 	ew::MeshData planeMeshData;
 	ew::createPlane(1.0f, 1.0f, planeMeshData);
 
+	ew::MeshData quadMeshData;
+	ew::createQuad(2.0f, 2.0f, quadMeshData);
+
 	ew::Mesh cubeMesh(&cubeMeshData);
 	ew::Mesh sphereMesh(&sphereMeshData);
 	ew::Mesh planeMesh(&planeMeshData);
 	ew::Mesh cylinderMesh(&cylinderMeshData);
+
+	ew::Mesh quadMesh(&quadMeshData);
 
 	material.ambientK = 0.25;
 	material.diffuseK = 0.5;
 	material.specularK = 0.5;
 	material.shininess = 100;
 
-	//dirLight.color = glm::vec3(0, 1, 0);
-	//dirLight.direction = glm::vec3(1, -1, 0);
+	dirLight.color = glm::vec3(1, 1, 1);
+	dirLight.direction = glm::vec3(-1, -1, 0);
 
-	ptLight1.color = glm::vec3(1, 1, 1);
+	//ptLight1.color = glm::vec3(1, 1, 1);
 	//ptLight2.color = glm::vec3(0, 0, 1);
 
 	//spLight.color = glm::vec3(0, 1, 1);
@@ -207,22 +215,25 @@ int main() {
 
 	cylinderTransform.position = glm::vec3(2.0f, 0.0f, 0.0f);
 
-	lightTransform1.scale = glm::vec3(0.5f);
-	lightTransform1.position = glm::vec3(0.0f, 5.0f, 0.0f);
+	//lightTransform1.scale = glm::vec3(0.5f);
+	//lightTransform1.position = glm::vec3(0.0f, 5.0f, 0.0f);
 
 	//lightTransform2.scale = glm::vec3(0.5f);
 	//lightTransform2.position = glm::vec3(-1.0f, 5.0f, -1.0f);
 
 	glActiveTexture(GL_TEXTURE0);
-	GLuint bamboo = createTexture("../../Resources/Bamboo/Bamboo001A_4K_Color.jpg");
+	GLuint bambooTecture = createTexture("../../Resources/Bamboo/Bamboo001A_4K_Color.jpg");
 	
 	glActiveTexture(GL_TEXTURE1);
-	GLuint fabric = createTexture("../../Resources/Fabric/Fabric061_4K_Color.jpg");
+	GLuint bambooNormal = createTexture("../../Resources/Bamboo/Bamboo001A_4K_NormalGL.jpg");
+
+	GLuint fbo = createFBO();
 
 	while (!glfwWindowShouldClose(window)) {
+
 		processInput(window);
 		glClearColor(bgColor.r,bgColor.g,bgColor.b, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
@@ -235,6 +246,11 @@ int main() {
 		//UPDATE
 		cubeTransform.rotation.x += deltaTime;
 
+		//Bind FBO
+		//glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+		//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		//glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
 		//Draw
 		litShader.use();
 		litShader.setMat4("_Projection", camera.getProjectionMatrix());
@@ -242,14 +258,14 @@ int main() {
 
 		//Set some lighting uniforms
 		 
-		//litShader.setVec3("_DirLight[0].color", dirLight.color);
-		//litShader.setVec3("_DirLight[0].direction", normalize(dirLight.direction));
-		//litShader.setFloat("_DirLight[0].intensity", dirLight.intensity);
+		litShader.setVec3("_DirLight[0].color", dirLight.color);
+		litShader.setVec3("_DirLight[0].direction", normalize(dirLight.direction));
+		litShader.setFloat("_DirLight[0].intensity", dirLight.intensity);
 
-		litShader.setVec3("_PtLight[0].position", lightTransform1.position);
-		litShader.setVec3("_PtLight[0].color", ptLight1.color);
-		litShader.setFloat("_PtLight[0].intensity", ptLight1.intensity);
-		litShader.setFloat("_PtLight[0].linearAtt", ptLight1.linearAtt);
+		//litShader.setVec3("_PtLight[0].position", lightTransform1.position);
+		//litShader.setVec3("_PtLight[0].color", ptLight1.color);
+		//litShader.setFloat("_PtLight[0].intensity", ptLight1.intensity);
+		//litShader.setFloat("_PtLight[0].linearAtt", ptLight1.linearAtt);
 
 		//litShader.setVec3("_PtLight[1].position", lightTransform2.position);
 		//litShader.setVec3("_PtLight[1].color", ptLight2.color);
@@ -265,14 +281,15 @@ int main() {
 		//litShader.setFloat("_SpLight[0].maxAngle", cos(spLight.maxAngle / 180 * 3.14159));
 		//litShader.setFloat("_SpLight[0].falloffCurve", spLight.falloffCurve);
 
-		//litShader.setInt("numDirLights", 1);
-		litShader.setInt("numPtLights", 1);
+		litShader.setInt("numDirLights", 1);
+		//litShader.setInt("numPtLights", 1);
 		//litShader.setInt("numSpLights", 1);
 
 		litShader.setVec3("_CameraPos", camera.getPosition());
 
 		//Set some material uniforms
 		litShader.setVec3("_Material.color", material.color);
+		litShader.setFloat("NormalIntensity", normalIntensity);
 		litShader.setInt("Scrolling", scrolling);
 		litShader.setFloat("Time", (float)glfwGetTime() * scrollSpeed);
 		litShader.setFloat("_Material.ambientK", material.ambientK);
@@ -282,10 +299,6 @@ int main() {
 
 		litShader.setInt("first", 0);
 		litShader.setInt("second", 1);
-
-		//Stencil Shader Things
-		glStencilFunc(GL_ALWAYS, 1, 0xFF);
-		glStencilMask(0xFF);
 
 		//Draw cube
 		litShader.setMat4("_Model", cubeTransform.getModelMatrix());
@@ -300,71 +313,61 @@ int main() {
 		cylinderMesh.draw();
 
 		//Draw plane
-		//litShader.setMat4("_Model", planeTransform.getModelMatrix());
-		//planeMesh.draw();
+		litShader.setMat4("_Model", planeTransform.getModelMatrix());
+		planeMesh.draw();
 
 		//Draw light as a small sphere using unlit shader, ironically.
-		unlitShader.use();
-		unlitShader.setMat4("_Projection", camera.getProjectionMatrix());
-		unlitShader.setMat4("_View", camera.getViewMatrix());
-		unlitShader.setMat4("_Model", lightTransform1.getModelMatrix());
-		unlitShader.setVec3("_Color", ptLight1.color);
-		sphereMesh.draw();
+		//unlitShader.use();
+		//unlitShader.setMat4("_Projection", camera.getProjectionMatrix());
+		//unlitShader.setMat4("_View", camera.getViewMatrix());
+		//unlitShader.setMat4("_Model", lightTransform1.getModelMatrix());
+		//unlitShader.setVec3("_Color", ptLight1.color);
+		//sphereMesh.draw();
 		//unlitShader.setMat4("_Model", lightTransform2.getModelMatrix());
 		//unlitShader.setVec3("_Color", ptLight2.color);
 		//sphereMesh.draw();
 
-		//More Stencil Shader Things
-		glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-		glStencilMask(0x00);
-		glDisable(GL_DEPTH_TEST);
-		outliningProgram.use();
-		outliningProgram.setMat4("_Projection", camera.getProjectionMatrix());
-		outliningProgram.setMat4("_View", camera.getViewMatrix());
-		outliningProgram.setFloat("_Outlining", 1.05f);
+		//Unbind FBO
+		//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		//Draw cube outline
-		outliningProgram.setMat4("_Model", cubeTransform.getModelMatrix());
-		cubeMesh.draw();
-
-		//Draw sphere outline
-		outliningProgram.setMat4("_Model", sphereTransform.getModelMatrix());
-		sphereMesh.draw();
-
-		//Draw cylinder outline
-		outliningProgram.setMat4("_Model", cylinderTransform.getModelMatrix());
-		cylinderMesh.draw();
-
-		//Draw plane outline
-		//outliningProgram.setMat4("_Model", planeTransform.getModelMatrix());
-		//planeMesh.draw();
-
-		//Even More Stencil Shader Things
-		glStencilMask(0xFF);
-		glStencilFunc(GL_ALWAYS, 0, 0xFF);
-		glEnable(GL_DEPTH_TEST);
+		//Draw Quad with data from GL_FRAMEBUFFER
+		/*if (postProcessing) {
+			postProcShader.use();
+			postProcShader.setInt("_FrameBuffer", fboLoc);
+		}
+		else {
+			noPostProcShader.use();
+			noPostProcShader.setInt("_FrameBuffer", fboLoc);
+		}
+		glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+		quadMesh.draw();*/
 
 		//Draw UI
 		ImGui::Begin("Material");
+		//ImGui::Checkbox("Post Processing", &postProcessing);
 		//ImGui::ColorEdit3("Material Color", &material.color.r);
+		//ImGui::SliderFloat("Normal Map Intensity", &normalIntensity, 0, 1);
 		//ImGui::Checkbox("Scrolling", &scrolling);
 		//ImGui::SliderFloat("Scroll Speed", &scrollSpeed, 0, 1);
 
-		//if (ImGui::BeginCombo("Wrapping Mode", currentWrap)) // The second parameter is the label previewed before opening the combo.
-		//{
-		//	for (int n = 0; n < IM_ARRAYSIZE(wrappingModes); n++)
-		//	{
-		//		bool is_selected = (currentWrap == wrappingModes[n]); // You can store your selection however you want, outside or inside your objects
-		//		if (ImGui::Selectable(wrappingModes[n], is_selected))
-		//		{
-		//			currentWrap = wrappingModes[n];
-		//			currentWrapMode = n;
-		//		}
-		//		if (is_selected)
-		//			ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
-		//	}
-		//	ImGui::EndCombo();
-		//}
+		/*
+		if (ImGui::BeginCombo("Wrapping Mode", currentWrap)) // The second parameter is the label previewed before opening the combo.
+		{
+			for (int n = 0; n < IM_ARRAYSIZE(wrappingModes); n++)
+			{
+				bool is_selected = (currentWrap == wrappingModes[n]); // You can store your selection however you want, outside or inside your objects
+				if (ImGui::Selectable(wrappingModes[n], is_selected))
+				{
+					currentWrap = wrappingModes[n];
+					currentWrapMode = n;
+				}
+				if (is_selected)
+					ImGui::SetItemDefaultFocus();   // You may set the initial focus when opening the combo (scrolling + for keyboard navigation support)
+			}
+			ImGui::EndCombo();
+		}
+		*/
 
 		ImGui::SliderFloat("Material Ambient K", &material.ambientK, 0, 1);
 		ImGui::SliderFloat("Material Diffuse K", &material.diffuseK, 0, 1);
@@ -372,22 +375,22 @@ int main() {
 		ImGui::SliderFloat("Material Shininess", &material.shininess, 1, 512);
 		ImGui::End();
 
-		//ImGui::Begin("Directional Light");
-		//ImGui::ColorEdit3("Color", &dirLight.color.r);
-		//ImGui::DragFloat3("Direction", &dirLight.direction.r, 1, -1, 1);
-		//ImGui::SliderFloat("Intensity", &dirLight.intensity, 0, 1);
-		//ImGui::End();
+		ImGui::Begin("Directional Light");
+		ImGui::ColorEdit3("Color", &dirLight.color.r);
+		ImGui::DragFloat3("Direction", &dirLight.direction.r, 1, -1, 1);
+		ImGui::SliderFloat("Intensity", &dirLight.intensity, 0, 1);
+		ImGui::End();
 
-		ImGui::Begin("Point Lights");
-		ImGui::ColorEdit3("Color 1", &ptLight1.color.r);
-		ImGui::DragFloat3("Position 1", &lightTransform1.position.r, 1, -1, 1);
-		ImGui::SliderFloat("Intensity 1", &ptLight1.intensity, 0, 1);
-		ImGui::SliderFloat("Linear Attenuation 1", &ptLight1.linearAtt, 0, 10);
+		//ImGui::Begin("Point Lights");
+		//ImGui::ColorEdit3("Color 1", &ptLight1.color.r);
+		//ImGui::DragFloat3("Position 1", &lightTransform1.position.r, 1, -1, 1);
+		//ImGui::SliderFloat("Intensity 1", &ptLight1.intensity, 0, 1);
+		//ImGui::SliderFloat("Linear Attenuation 1", &ptLight1.linearAtt, 0, 10);
 		//ImGui::ColorEdit3("Color 2", &ptLight2.color.r);
 		//ImGui::DragFloat3("Position 2", &lightTransform2.position.r, 1, -1, 1);
 		//ImGui::SliderFloat("Intensity 2", &ptLight2.intensity, 0, 1);
 		//ImGui::SliderFloat("Linear Attenuation 2", &ptLight2.linearAtt, 0, 10);
-		ImGui::End();
+		//ImGui::End();
 
 		//ImGui::Begin("Spot Light");
 		//ImGui::ColorEdit3("Color", &spLight.color.r);
@@ -401,11 +404,15 @@ int main() {
 		//ImGui::End();
 
 		ImGui::Render();
+
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 		glfwPollEvents();
 
 		glfwSwapBuffers(window);
 	}
+
+	//Delete
+	//glDeleteFramebuffers(1, &fbo);
 
 	glfwTerminate();
 	return 0;
@@ -555,3 +562,49 @@ GLuint createTexture(const char* filePath) {
 	return texture;
 }
 
+GLuint createFBO() {
+	//Create FBO
+	GLuint fbo;
+	glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+	glActiveTexture(GL_TEXTURE0 + fboLoc);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
+
+	//Create Tecture Color Buffer
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, 2048, 2048, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	//Attach Color Buffer
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texture, 0);
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+
+	//Create Render Buffer Object
+	//GLuint rbo;
+	//glGenRenderbuffers(1, &rbo);
+	//glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+
+	//Create storage for depth components
+	//glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32F, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+	//Attach RBO to current FBO
+	//glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+	//Returns the state of the currently bound FBO
+	GLenum fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (fboStatus == GL_FRAMEBUFFER_COMPLETE) {
+		std::cout << "WE GOOD" << std::endl;
+	}
+	else {
+		std::cout << "WE NOT GOOD" << std::endl;
+	}
+
+	return fbo;
+}
