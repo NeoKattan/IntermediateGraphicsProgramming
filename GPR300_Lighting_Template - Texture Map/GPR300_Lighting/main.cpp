@@ -103,6 +103,11 @@ const char* wrappingModes[] = { "Clamp To Edge", "Clamp To Border", "Repeat", "M
 static const char* currentWrap = "Clamp To Edge";
 int currentWrapMode = 0;
 
+//Quincy Code CellShading
+bool cellShadingEnabled = false;
+int toon_color_levels = 8;
+bool floorFuncEnabled = false;
+
 int main() {
 	if (!glfwInit()) {
 		printf("glfw failed to init");
@@ -160,8 +165,8 @@ int main() {
 	material.specularK = 0.5;
 	material.shininess = 100;
 
-	//dirLight.color = glm::vec3(0, 1, 0);
-	//dirLight.direction = glm::vec3(1, -1, 0);
+	dirLight.color = glm::vec3(0, 1, 0);
+	dirLight.direction = glm::vec3(1, -1, 0);
 
 	ptLight1.color = glm::vec3(1, 1, 1);
 	//ptLight2.color = glm::vec3(0, 0, 1);
@@ -233,9 +238,15 @@ int main() {
 
 		//Set some lighting uniforms
 		 
-		//litShader.setVec3("_DirLight[0].color", dirLight.color);
-		//litShader.setVec3("_DirLight[0].direction", normalize(dirLight.direction));
-		//litShader.setFloat("_DirLight[0].intensity", dirLight.intensity);
+		//Quincy Code Cell Shading
+		//**************************
+		litShader.setVec3("_DirLight[0].color", dirLight.color);
+		litShader.setVec3("_DirLight[0].direction", normalize(dirLight.direction));
+		litShader.setFloat("_DirLight[0].intensity", dirLight.intensity);
+		litShader.setInt("CellShadingEnabled", cellShadingEnabled);
+		litShader.setInt("toon_color_levels", toon_color_levels);
+		litShader.setInt("floorFuncEnabled", floorFuncEnabled);
+		//*******************************
 
 		litShader.setVec3("_PtLight[0].position", lightTransform1.position);
 		litShader.setVec3("_PtLight[0].color", ptLight1.color);
@@ -256,7 +267,7 @@ int main() {
 		//litShader.setFloat("_SpLight[0].maxAngle", cos(spLight.maxAngle / 180 * 3.14159));
 		//litShader.setFloat("_SpLight[0].falloffCurve", spLight.falloffCurve);
 
-		//litShader.setInt("numDirLights", 1);
+		litShader.setInt("numDirLights", 1);
 		litShader.setInt("numPtLights", 1);
 		//litShader.setInt("numSpLights", 1);
 
@@ -329,11 +340,17 @@ int main() {
 		ImGui::SliderFloat("Material Shininess", &material.shininess, 1, 512);
 		ImGui::End();
 
-		//ImGui::Begin("Directional Light");
-		//ImGui::ColorEdit3("Color", &dirLight.color.r);
-		//ImGui::DragFloat3("Direction", &dirLight.direction.r, 1, -1, 1);
-		//ImGui::SliderFloat("Intensity", &dirLight.intensity, 0, 1);
-		//ImGui::End();
+		//Quincy Code
+		//********************************
+		ImGui::Begin("Directional Light");
+		ImGui::ColorEdit3("Color", &dirLight.color.r);
+		ImGui::DragFloat3("Direction", &dirLight.direction.r, 1.0f, -5.0f, 5.0f);
+		ImGui::SliderFloat("Intensity", &dirLight.intensity, 0, 1);
+		ImGui::SliderInt("Cell Levels", &toon_color_levels, 1, 10);
+		ImGui::Checkbox("Enable Cell Shading", &cellShadingEnabled);
+		ImGui::Checkbox("Enable Floor Function", &floorFuncEnabled);
+		ImGui::End();
+		//*************************************
 
 		ImGui::Begin("Point Lights");
 		ImGui::ColorEdit3("Color 1", &ptLight1.color.r);

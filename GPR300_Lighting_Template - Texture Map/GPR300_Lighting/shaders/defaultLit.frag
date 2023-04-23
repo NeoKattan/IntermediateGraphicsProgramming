@@ -53,6 +53,14 @@ uniform struct Material{
 
 uniform sampler2D first, second;
 
+//Quincy Code: Toon Shading
+//***************************
+uniform int toon_color_levels = 4;
+const float toon_scale_factor = 1.0f / toon_color_levels;
+uniform bool CellShadingEnabled = true;
+uniform bool floorFuncEnabled = false;
+//***************************
+
 void main(){      
     ambient = _Material.ambientK * texture(first, v_out.Uv).rgb;
 
@@ -63,7 +71,31 @@ void main(){
     for(int i = 0; i < numDirLights; i++) {
         vec3 l = normalize(_DirLight[i].direction * -1);
 
-        diffuse += _Material.diffuseK * max(dot(l, v_out.WorldNormal), 0) * (_DirLight[i].intensity * _DirLight[i].color);
+        //Quincy Code
+        //************************************
+        float diffuseFactor = dot(v_out.WorldNormal, l);
+
+        if (diffuseFactor > 0)
+        {
+            if (CellShadingEnabled)
+            {
+                if(floorFuncEnabled)
+                {
+                    //results are darker
+                    diffuseFactor = floor(diffuseFactor * toon_color_levels) * toon_scale_factor;
+                }
+                else
+                {
+                    //results are brighter
+                    diffuseFactor = ceil(diffuseFactor * toon_color_levels) * toon_scale_factor;
+                }
+            }
+        }
+
+        //Quincy Edit: put diffuseFactor in Max func
+        diffuse += _Material.diffuseK * max(diffuseFactor, 0) * (_DirLight[i].intensity * _DirLight[i].color);
+        //*****************************************
+        
 
         vec3 v = _CameraPos - v_out.WorldPosition;
         vec3 h = normalize(v + l);
