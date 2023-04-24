@@ -4,6 +4,7 @@ out vec4 FragColor;
 in struct Vertex{
     vec3 WorldNormal;
     vec3 WorldPosition;
+    vec3 Eye;
     vec2 Uv;
 }v_out;
 
@@ -42,6 +43,7 @@ uniform int numDirLights, numPtLights, numSpLights;
 vec3 ambient;
 vec3 diffuse;
 vec3 specular;
+vec3 RimColor;//Quincy Code
 
 uniform struct Material{
     vec3 color;
@@ -53,22 +55,79 @@ uniform struct Material{
 
 uniform sampler2D first, second;
 
+//Quincy Code: Toon Shading
+//***************************
+uniform int toon_color_levels = 4;
+const float toon_scale_factor = 1.0f / toon_color_levels;
+uniform float _RimLightPower = 4.0f;
+uniform bool CellShadingEnabled = false;
+uniform bool floorFuncEnabled = false;
+uniform bool RimLightingEnabled = false;
+
+float CalcRimLightingFactor(vec3 Eye, vec3 normal)
+{
+    float RimFactor = dot(Eye, normal);
+    RimFactor = 1.0 - RimFactor; //want it to increase as diffuse light decreases
+    RimFactor = max(0.0, RimFactor);
+    RimFactor = pow(RimFactor, _RimLightPower);
+
+    return RimFactor;
+}
+//***************************
+
 void main(){      
     ambient = _Material.ambientK * texture(first, v_out.Uv).rgb;
 
     diffuse = vec3(0);
     specular = vec3(0);
+    RimColor = vec3(0);
 
     //Directional Lights
     for(int i = 0; i < numDirLights; i++) {
         vec3 l = normalize(_DirLight[i].direction * -1);
 
-        diffuse += _Material.diffuseK * max(dot(l, v_out.WorldNormal), 0) * (_DirLight[i].intensity * _DirLight[i].color);
+        //Quincy Code
+        //************************************
+        //https://www.youtube.com/watch?v=h15kTY3aWaY
+        float diffuseFactor = dot(v_out.WorldNormal, l);
 
-        vec3 v = _CameraPos - v_out.WorldPosition;
-        vec3 h = normalize(v + l);
+        if (diffuseFactor > 0)
+        {
+            //might need to use local positions instead
+            vec3 v = _CameraPos - v_out.WorldPosition;
+            vec3 h = normalize(v + l);
 
-        specular += _Material.specularK * pow(dot(v_out.WorldNormal, h), _Material.shininess) * (_DirLight[i].intensity * _DirLight[i].color);
+            //Cell Shading
+            if (CellShadingEnabled)
+            {
+                if(floorFuncEnabled)
+                {
+                    //results are darker
+                    diffuseFactor = floor(diffuseFactor * toon_color_levels) * toon_scale_factor;
+                }
+                else
+                {
+                    //results are brighter
+                    diffuseFactor = ceil(diffuseFactor * toon_color_levels) * toon_scale_factor;
+                }
+            }
+            if(!CellShadingEnabled && !RimLightingEnabled) //dont do specular if CellShading is enabled
+            {
+                 specular += _Material.specularK * pow(dot(v_out.WorldNormal, h), _Material.shininess) * (_DirLight[i].intensity * _DirLight[i].color);
+            }
+
+            //Quincy Edit: put diffuseFactor in Max func
+            diffuse += _Material.diffuseK * max(diffuseFactor, 0) * (_DirLight[i].intensity * _DirLight[i].color);
+
+            //Rim Lighting
+            if(RimLightingEnabled)
+            {
+                float RimFactor = CalcRimLightingFactor(v_out.Eye, v_out.WorldNormal);
+                RimColor = diffuse * RimFactor;
+            }
+
+        }
+        //*****************************************
     }
 
     //Point Lights
@@ -114,7 +173,7 @@ void main(){
         specular += _Material.specularK * pow(dot(v_out.WorldNormal, h), _Material.shininess) * (_SpLight[i].intensity * angularAtt * linearAtt * _SpLight[i].color);
     }
 
-    vec3 lightCol = ambient + diffuse + specular;
+    vec3 lightCol = ambient + diffuse + specular + RimColor; //added RimColor: Quincy
     vec3 col = _Material.color * lightCol;
     FragColor = vec4(col,1.0f);
 }

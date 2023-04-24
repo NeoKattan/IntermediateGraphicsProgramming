@@ -10,6 +10,7 @@ uniform mat4 _Projection;
 out struct Vertex{
     vec3 WorldNormal;
     vec3 WorldPosition;
+    vec3 Eye;
     vec2 Uv;
 }v_out;
 
@@ -18,6 +19,11 @@ uniform float Time;
 
 void main(){    
     v_out.WorldPosition = vec3(_Model * vec4(vPos,1));
+
+    vec3 viewPosition = vec3((_View * _Model) * vec4(vPos,1));
+
+    v_out.Eye = normalize(-viewPosition);//Quincy Code
+
     v_out.WorldNormal = transpose(inverse(mat3(_Model))) * vNormal;
     gl_Position = _Projection * _View * _Model * vec4(vPos,1);
 
