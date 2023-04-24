@@ -179,6 +179,9 @@ int main() {
 	//spLight.position = glm::vec3(3, 3, 0);
 	//spLight.direction = glm::vec3(-1, -1, 0);
 
+	glm::vec3 outlineColor = glm::vec3(1, 1, 1);
+	float outlineThickness = 1.05f;
+
 	//Enable back face culling
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
@@ -200,6 +203,7 @@ int main() {
 	ew::Transform lightTransform2;
 
 	cubeTransform.position = glm::vec3(-2.0f, 0.0f, 0.0f);
+
 	sphereTransform.position = glm::vec3(0.0f, 0.0f, 0.0f);
 
 	planeTransform.position = glm::vec3(0.0f, -1.0f, 0.0f);
@@ -299,10 +303,6 @@ int main() {
 		litShader.setMat4("_Model", cylinderTransform.getModelMatrix());
 		cylinderMesh.draw();
 
-		//Draw plane
-		//litShader.setMat4("_Model", planeTransform.getModelMatrix());
-		//planeMesh.draw();
-
 		//Draw light as a small sphere using unlit shader, ironically.
 		unlitShader.use();
 		unlitShader.setMat4("_Projection", camera.getProjectionMatrix());
@@ -314,6 +314,13 @@ int main() {
 		//unlitShader.setVec3("_Color", ptLight2.color);
 		//sphereMesh.draw();
 
+		//Draw plane while ignoring the stencil buffer
+		glDisable(GL_STENCIL_TEST);
+		litShader.use();
+		litShader.setMat4("_Model", planeTransform.getModelMatrix());
+		planeMesh.draw();
+		glEnable(GL_STENCIL_TEST);
+
 		//More Stencil Shader Things
 		glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
 		glStencilMask(0x00);
@@ -321,23 +328,23 @@ int main() {
 		outliningProgram.use();
 		outliningProgram.setMat4("_Projection", camera.getProjectionMatrix());
 		outliningProgram.setMat4("_View", camera.getViewMatrix());
-		outliningProgram.setFloat("_Outlining", 1.05f);
+		outliningProgram.setFloat("_Outlining", outlineThickness);
+		outliningProgram.setVec3("_Color", outlineColor);
 
 		//Draw cube outline
-		outliningProgram.setMat4("_Model", cubeTransform.getModelMatrix());
+		outliningProgram.setMat4("_Model", cubeTransform.getModelMatrixWithoutTranslation());
+		outliningProgram.setMat4("_Translation", cubeTransform.getTranslationMatrix());
 		cubeMesh.draw();
 
 		//Draw sphere outline
-		outliningProgram.setMat4("_Model", sphereTransform.getModelMatrix());
+		outliningProgram.setMat4("_Model", sphereTransform.getModelMatrixWithoutTranslation());
+		outliningProgram.setMat4("_Translation", sphereTransform.getTranslationMatrix());
 		sphereMesh.draw();
 
 		//Draw cylinder outline
-		outliningProgram.setMat4("_Model", cylinderTransform.getModelMatrix());
+		outliningProgram.setMat4("_Model", cylinderTransform.getModelMatrixWithoutTranslation());
+		outliningProgram.setMat4("_Translation", cylinderTransform.getTranslationMatrix());
 		cylinderMesh.draw();
-
-		//Draw plane outline
-		//outliningProgram.setMat4("_Model", planeTransform.getModelMatrix());
-		//planeMesh.draw();
 
 		//Even More Stencil Shader Things
 		glStencilMask(0xFF);
@@ -399,6 +406,11 @@ int main() {
 		//ImGui::SliderFloat("Max Angle", &spLight.maxAngle, spLight.minAngle, 180);
 		//ImGui::SliderFloat("Falloff Curve", &spLight.falloffCurve, 0, 1);
 		//ImGui::End();
+
+		ImGui::Begin("Outline");
+		ImGui::ColorEdit3("Color", &outlineColor.r);
+		ImGui::SliderFloat("Thickness", &outlineThickness, 1, 2);
+		ImGui::End();
 
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

@@ -18,5 +18,11 @@ namespace ew {
 			rotation = glm::vec3(0);
 			scale = glm::vec3(1);
 		}
+		glm::mat4 getTranslationMatrix() {
+			return ew::translate(position);
+		}
+		glm::mat4 getModelMatrixWithoutTranslation() {
+			return ew::rotateX(rotation.x) * ew::rotateY(rotation.y) * ew::rotateZ(rotation.z) * ew::scale(scale);
+		}
 	};
 }
