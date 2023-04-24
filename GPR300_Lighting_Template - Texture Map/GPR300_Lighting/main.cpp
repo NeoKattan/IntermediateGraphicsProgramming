@@ -104,9 +104,13 @@ static const char* currentWrap = "Clamp To Edge";
 int currentWrapMode = 0;
 
 //Quincy Code CellShading
+//******************
 bool cellShadingEnabled = false;
 int toon_color_levels = 8;
 bool floorFuncEnabled = false;
+bool RimLightingEnabled = false;
+float _RimLightPower = .2f;
+//**************
 
 int main() {
 	if (!glfwInit()) {
@@ -245,7 +249,9 @@ int main() {
 		litShader.setFloat("_DirLight[0].intensity", dirLight.intensity);
 		litShader.setInt("CellShadingEnabled", cellShadingEnabled);
 		litShader.setInt("toon_color_levels", toon_color_levels);
-		litShader.setInt("floorFuncEnabled", floorFuncEnabled);
+		litShader.setInt("floorFuncEnabled", floorFuncEnabled); 
+	    litShader.setInt("RimLightingEnabled", RimLightingEnabled);
+		litShader.setFloat("_RimLightPower", _RimLightPower);
 		//*******************************
 
 		litShader.setVec3("_PtLight[0].position", lightTransform1.position);
@@ -345,10 +351,12 @@ int main() {
 		ImGui::Begin("Directional Light");
 		ImGui::ColorEdit3("Color", &dirLight.color.r);
 		ImGui::DragFloat3("Direction", &dirLight.direction.r, 1.0f, -5.0f, 5.0f);
-		ImGui::SliderFloat("Intensity", &dirLight.intensity, 0, 1);
+		ImGui::SliderFloat("Intensity", &dirLight.intensity, 0.0f, 1.0f);
 		ImGui::SliderInt("Cell Levels", &toon_color_levels, 1, 10);
+		ImGui::SliderFloat("Rim Light Power", &_RimLightPower, 0.0f, 1.0f);
 		ImGui::Checkbox("Enable Cell Shading", &cellShadingEnabled);
 		ImGui::Checkbox("Enable Floor Function", &floorFuncEnabled);
+		ImGui::Checkbox("Enable Rim Lighting", &RimLightingEnabled);
 		ImGui::End();
 		//*************************************
 
