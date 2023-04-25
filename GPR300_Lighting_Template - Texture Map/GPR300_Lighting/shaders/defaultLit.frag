@@ -91,10 +91,12 @@ void main(){
         //https://www.youtube.com/watch?v=h15kTY3aWaY
         float diffuseFactor = dot(v_out.WorldNormal, l);
 
-        if (diffuseFactor > 0)
+        if (diffuseFactor > 0) //use max(diffuseFactor, 0);
         {
             //might need to use local positions instead
             vec3 v = _CameraPos - v_out.WorldPosition;
+            v = normalize(v);
+            l = normalize(l);
             vec3 h = normalize(v + l);
 
             //Cell Shading
@@ -111,7 +113,7 @@ void main(){
                     diffuseFactor = ceil(diffuseFactor * toon_color_levels) * toon_scale_factor;
                 }
             }
-            if(!CellShadingEnabled && !RimLightingEnabled) //dont do specular if CellShading is enabled
+            if(!CellShadingEnabled && !RimLightingEnabled) //dont do specular if CellShading is enabled | put outside of if statement
             {
                  specular += _Material.specularK * pow(dot(v_out.WorldNormal, h), _Material.shininess) * (_DirLight[i].intensity * _DirLight[i].color);
             }
