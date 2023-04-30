@@ -4,6 +4,7 @@ out vec4 FragColor;
 in struct Vertex{
     vec3 WorldNormal;
     vec3 WorldPosition;
+    vec3 ViewSpaceNormal;
     vec3 Eye;
     vec2 Uv;
 }v_out;
@@ -59,19 +60,19 @@ uniform sampler2D first, second;
 //***************************
 uniform int toon_color_levels = 4;
 const float toon_scale_factor = 1.0f / toon_color_levels;
-uniform float _RimLightPower = 4.0f;
+uniform float _RimLightPower = 0f;
 uniform bool CellShadingEnabled = false;
 uniform bool floorFuncEnabled = false;
 uniform bool RimLightingEnabled = false;
+uniform bool _OnlyRimLightingColor = false;
+float RimFactor = 0f;
 
-float CalcRimLightingFactor(vec3 Eye, vec3 normal)
+float CalcRimLightingContribution(vec3 Eye, vec3 normal)
 {
-    float RimFactor = dot(Eye, normal);
-    RimFactor = 1.0 - RimFactor; //want it to increase as diffuse light decreases
-    RimFactor = max(0.0, RimFactor);
-    RimFactor = pow(RimFactor, _RimLightPower);
+    float RimContribution = 1.0 -  max(dot(Eye, normal), 0.0); //want it to increase as diffuse light decreases
+    RimContribution = pow(RimContribution, _RimLightPower);
 
-    return RimFactor;
+    return RimContribution;
 }
 //***************************
 
@@ -81,6 +82,7 @@ void main(){
     diffuse = vec3(0);
     specular = vec3(0);
     RimColor = vec3(0);
+    vec3 fColor = vec3(0);
 
     //Directional Lights
     for(int i = 0; i < numDirLights; i++) {
@@ -89,6 +91,8 @@ void main(){
         //Quincy Code
         //************************************
         //https://www.youtube.com/watch?v=h15kTY3aWaY
+        //https://www.roxlu.com/2014/037/opengl-rim-shader
+
         float diffuseFactor = dot(v_out.WorldNormal, l);
 
         if (diffuseFactor > 0) //use max(diffuseFactor, 0);
@@ -124,10 +128,9 @@ void main(){
             //Rim Lighting
             if(RimLightingEnabled)
             {
-                float RimFactor = CalcRimLightingFactor(v_out.Eye, v_out.WorldNormal);
+                RimFactor = CalcRimLightingContribution(v_out.Eye, v_out.ViewSpaceNormal);
                 RimColor = diffuse * RimFactor;
             }
-
         }
         //*****************************************
     }
@@ -177,5 +180,15 @@ void main(){
 
     vec3 lightCol = ambient + diffuse + specular + RimColor; //added RimColor: Quincy
     vec3 col = _Material.color * lightCol;
-    FragColor = vec4(col,1.0f);
+
+    if(_OnlyRimLightingColor)
+    {
+        fColor = RimColor;
+    }
+    else 
+    {
+        fColor = col;
+    }
+
+    FragColor = vec4(fColor,1.0f);
 }

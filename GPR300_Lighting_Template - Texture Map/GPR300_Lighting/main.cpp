@@ -109,7 +109,9 @@ bool cellShadingEnabled = false;
 int toon_color_levels = 8;
 bool floorFuncEnabled = false;
 bool RimLightingEnabled = false;
-float _RimLightPower = .2f;
+float _RimLightPower = 0.2f;
+bool _OnlyRimLightingColor = false;
+bool _OtlnShader = false;
 //**************
 
 int main() {
@@ -264,6 +266,7 @@ int main() {
 		litShader.setInt("floorFuncEnabled", floorFuncEnabled); 
 	    litShader.setInt("RimLightingEnabled", RimLightingEnabled);
 		litShader.setFloat("_RimLightPower", _RimLightPower);
+		litShader.setInt("_OnlyRimLightingColor", _OnlyRimLightingColor);
 		//*******************************
 
 		litShader.setVec3("_PtLight[0].position", lightTransform1.position);
@@ -402,10 +405,12 @@ int main() {
 		ImGui::DragFloat3("Direction", &dirLight.direction.r, 1.0f, -5.0f, 5.0f);
 		ImGui::SliderFloat("Intensity", &dirLight.intensity, 0.0f, 1.0f);
 		ImGui::SliderInt("Cell Levels", &toon_color_levels, 1, 10);
-		ImGui::SliderFloat("Rim Light Power", &_RimLightPower, 0.0f, 1.0f);
+		ImGui::SliderFloat("Rim Light Power", &_RimLightPower, 0.0f, 2.5f);
 		ImGui::Checkbox("Enable Cell Shading", &cellShadingEnabled);
 		ImGui::Checkbox("Enable Floor Function", &floorFuncEnabled);
 		ImGui::Checkbox("Enable Rim Lighting", &RimLightingEnabled);
+		ImGui::Checkbox("RimColor Only", &_OnlyRimLightingColor);
+		//ImGui::Checkbox("Outline Shader On/Off", &_OtlnShader);
 		ImGui::End();
 		//*************************************
 
