@@ -400,6 +400,7 @@ int main() {
 
 		//Quincy Code
 		//********************************
+		//Controls Toon and Rim Shaders
 		ImGui::Begin("Directional Light");
 		ImGui::ColorEdit3("Color", &dirLight.color.r);
 		ImGui::DragFloat3("Direction", &dirLight.direction.r, 1.0f, -5.0f, 5.0f);

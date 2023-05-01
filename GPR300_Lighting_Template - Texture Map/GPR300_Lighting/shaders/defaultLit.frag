@@ -58,7 +58,7 @@ uniform sampler2D first, second;
 
 //Quincy Code: Toon Shading
 //***************************
-uniform int toon_color_levels = 4;
+uniform int toon_color_levels = 4; //like layers of effect
 const float toon_scale_factor = 1.0f / toon_color_levels;
 uniform float _RimLightPower = 0f;
 uniform bool CellShadingEnabled = false;
@@ -70,7 +70,7 @@ float RimFactor = 0f;
 float CalcRimLightingContribution(vec3 Eye, vec3 normal)
 {
     float RimContribution = 1.0 -  max(dot(Eye, normal), 0.0); //want it to increase as diffuse light decreases
-    RimContribution = pow(RimContribution, _RimLightPower);
+    RimContribution = pow(RimContribution, _RimLightPower); //allows change in intesnsity
 
     return RimContribution;
 }
@@ -97,7 +97,6 @@ void main(){
 
         if (diffuseFactor > 0) //use max(diffuseFactor, 0);
         {
-            //might need to use local positions instead
             vec3 v = _CameraPos - v_out.WorldPosition;
             v = normalize(v);
             l = normalize(l);
@@ -128,8 +127,8 @@ void main(){
             //Rim Lighting
             if(RimLightingEnabled)
             {
-                RimFactor = CalcRimLightingContribution(v_out.Eye, v_out.ViewSpaceNormal);
-                RimColor = diffuse * RimFactor;
+                RimFactor = CalcRimLightingContribution(v_out.Eye, v_out.ViewSpaceNormal);//Get Rim Sader Contribution to Color 
+                RimColor = diffuse * RimFactor; 
             }
         }
         //*****************************************
@@ -181,6 +180,7 @@ void main(){
     vec3 lightCol = ambient + diffuse + specular + RimColor; //added RimColor: Quincy
     vec3 col = _Material.color * lightCol;
 
+    //SHow Rim Shading on its own
     if(_OnlyRimLightingColor)
     {
         fColor = RimColor;
